@@ -115,5 +115,3 @@ if st.button("Predict"):
     st.subheader("📌 Summary")
     st.metric("Last Known Price", f"${data['Close'].iloc[-1]:.2f}")
     st.metric("Predicted Price (Day 30)", f"${forecast.iloc[-1, 0]:.2f}")
-
-st.caption("⚠️ Educational purpose only. Not financial advice.")

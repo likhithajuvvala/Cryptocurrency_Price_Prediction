@@ -48,4 +48,15 @@ if st.button("Predict"):
     future_prices = model.predict(future_days)
 
     future_dates = pd.date_range(
-        start=data["Date"].iloc[-1]()
+        start=data["Date"].iloc[-1] + pd.Timedelta(days=1),
+        periods=30
+    )
+
+    forecast = pd.DataFrame({
+        "Date": future_dates,
+        "Predicted Price": future_prices
+    }).set_index("Date")
+
+    st.success("Prediction Complete")
+    st.line_chart(forecast)
+    st.dataframe(forecast)

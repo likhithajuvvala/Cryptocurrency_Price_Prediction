@@ -1,15 +1,24 @@
-# Cryptocurrency Price Prediction with Machine Learning
+# Cryptocurrency Price Prediction
 
-A web app that predicts cryptocurrency prices for the next 30 days using
-historical data and time-series models.
+A deployed web application that predicts cryptocurrency prices for the next
+30 days using historical trend analysis.
 
 ## Features
- Live data from Yahoo Finance
- 30-day price forecast
- Interactive web UI
+ 30-day price forecasting
+ Interactive Streamlit UI
 
 ## Tech Stack
+- Python
+- Streamlit
+- NumPy
+- Pandas
 
-Python
-Streamlit
-AutoTS
+## How it Works
+
+The model learns historical price trends and projects future values using
+numerical regression techniques. When live market APIs are unavailable,
+the system automatically switches to a historical demo dataset.
+
+## Disclaimer
+
+This project is for educational purposes only and does not provide financial advice.

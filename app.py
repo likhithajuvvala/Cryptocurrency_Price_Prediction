@@ -1,6 +1,8 @@
 import streamlit as st
 import yfinance as yf
-from autots import AutoTS
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
 from datetime import date, timedelta
 
 st.set_page_config(page_title="Crypto Price Prediction")
@@ -29,24 +31,21 @@ if st.button("Predict"):
         progress=False
     )
 
-    data["Date"] = data.index
-    data = data[["Date", "Close"]]
-    data.reset_index(drop=True, inplace=True)
+    data = data.reset_index()
+    data = data[["Date", "Close"]].dropna()
 
-    model = AutoTS(
-        forecast_length=30,
-        frequency="infer",
-        ensemble="simple"
-    )
+    # Feature engineering
+    data["Day"] = np.arange(len(data))
 
-    model = model.fit(
-        data,
-        date_col="Date",
-        value_col="Close"
-    )
+    X = data[["Day"]]
+    y = data["Close"]
 
-    forecast = model.predict().forecast
+    model = LinearRegression()
+    model.fit(X, y)
 
-    st.success("Prediction Complete")
-    st.line_chart(forecast)
-    st.dataframe(forecast)
+    # Predict next 30 days
+    future_days = np.arange(len(data), len(data) + 30).reshape(-1, 1)
+    future_prices = model.predict(future_days)
+
+    future_dates = pd.date_range(
+        start=data["Date"].iloc[-1]()

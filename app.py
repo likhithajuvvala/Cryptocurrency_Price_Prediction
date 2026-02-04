@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import requests
-from datetime import date, timedelta
+from datetime import timedelta
 
 # ---------------- Page Config ----------------
 st.set_page_config(
@@ -23,9 +23,9 @@ crypto_map = {
 
 choice = st.selectbox("Select Cryptocurrency", crypto_map.keys())
 
-# ---------------- Load Live Data (CoinGecko) ----------------
+# ---------------- Load Data (CoinGecko Safe) ----------------
 def load_data(coin_id):
-    url = "https://api.coingecko.com/api/v3/coins/" + coin_id + "/market_chart"
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
 
     params = {
         "vs_currency": "usd",
@@ -33,11 +33,19 @@ def load_data(coin_id):
         "interval": "daily"
     }
 
-    response = requests.get(url, params=params)
+    response = requests.get(url, params=params, timeout=10)
+
+    if response.status_code != 200:
+        return None
 
     data = response.json()
 
+    # Safety check
+    if "prices" not in data:
+        return None
+
     prices = data["prices"]
+
     df = pd.DataFrame(prices, columns=["timestamp", "Close"])
     df["Date"] = pd.to_datetime(df["timestamp"], unit="ms")
     df = df[["Date", "Close"]]
@@ -47,12 +55,18 @@ def load_data(coin_id):
 # ---------------- Prediction ----------------
 if st.button("Predict"):
     coin_id = crypto_map[choice]
-
     data = load_data(coin_id)
+
+    if data is None or data.empty:
+        st.error(
+            "Live market data temporarily unavailable due to API limits. "
+            "Please try again after some time."
+        )
+        st.stop()
 
     st.success("Live market data loaded successfully.")
 
-    # Historical prices
+    # Historical chart
     st.subheader("📉 Historical Prices")
     st.line_chart(data.set_index("Date")["Close"])
 
@@ -84,6 +98,4 @@ if st.button("Predict"):
     # Metrics
     st.subheader("📌 Summary")
     st.metric("Last Known Price", f"${data['Close'].iloc[-1]:.2f}")
-    st.metric("Predicted Price (Day 30)", f"${forecast.iloc[-1,0]:.2f}")
-
-st.caption("⚠️ Educational purpose only. Not financial advice.")
+    st.metric("Predicted Price (Day 30)", f"${forecast.iloc[-1, 0]:.2f}")

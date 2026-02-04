@@ -21,4 +21,4 @@ the system automatically switches to a historical demo dataset.
 
 ## Disclaimer
 
-This project is for educational purposes only and does not provide financial advice.
+This project is for learning purpose only. Open for any contributions..

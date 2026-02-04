@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import yfinance as yf
-from datetime import date
+import requests
+from datetime import date, timedelta
 
 # ---------------- Page Config ----------------
 st.set_page_config(
@@ -16,62 +16,43 @@ st.write("Predict cryptocurrency prices for the next 30 days using historical tr
 
 # ---------------- Crypto Options ----------------
 crypto_map = {
-    "Bitcoin (BTC)": "BTC-USD",
-    "Ethereum (ETH)": "ETH-USD",
-    "Binance Coin (BNB)": "BNB-USD"
+    "Bitcoin (BTC)": "bitcoin",
+    "Ethereum (ETH)": "ethereum",
+    "Binance Coin (BNB)": "binancecoin"
 }
 
 choice = st.selectbox("Select Cryptocurrency", crypto_map.keys())
 
-# ---------------- Demo Data ----------------
-def load_demo_data(symbol):
-    dates = pd.date_range(end=date.today(), periods=730)
-    np.random.seed(42)
+# ---------------- Load Live Data (CoinGecko) ----------------
+def load_data(coin_id):
+    url = "https://api.coingecko.com/api/v3/coins/" + coin_id + "/market_chart"
 
-    if symbol == "BTC":
-        prices = np.cumsum(np.random.normal(50, 200, 730)) + 30000
-    elif symbol == "ETH":
-        prices = np.cumsum(np.random.normal(5, 40, 730)) + 2000
-    else:
-        prices = np.cumsum(np.random.normal(2, 20, 730)) + 300
+    params = {
+        "vs_currency": "usd",
+        "days": 730,
+        "interval": "daily"
+    }
 
-    return pd.DataFrame({"Date": dates, "Close": prices})
+    response = requests.get(url, params=params)
 
-# ---------------- Yahoo Finance Data ----------------
-def load_data(symbol):
-    try:
-        data = yf.download(
-            tickers=symbol,
-            period="2y",
-            interval="1d",
-            auto_adjust=True,
-            progress=False,
-            threads=False
-        )
+    data = response.json()
 
-        if data is None or data.empty:
-            raise ValueError("Empty data")
+    prices = data["prices"]
+    df = pd.DataFrame(prices, columns=["timestamp", "Close"])
+    df["Date"] = pd.to_datetime(df["timestamp"], unit="ms")
+    df = df[["Date", "Close"]]
 
-        data = data.reset_index()
-        data = data[["Date", "Close"]]
-        return data, False
-
-    except:
-        fallback_symbol = symbol.split("-")[0]
-        return load_demo_data(fallback_symbol), True
+    return df
 
 # ---------------- Prediction ----------------
 if st.button("Predict"):
-    symbol = crypto_map[choice]
+    coin_id = crypto_map[choice]
 
-    data, fallback_used = load_data(symbol)
+    data = load_data(coin_id)
 
-    if fallback_used:
-        st.warning("Live Yahoo Finance data unavailable. Using demo historical data.")
-    else:
-        st.success("Live Yahoo Finance data loaded successfully.")
+    st.success("Live market data loaded successfully.")
 
-    # Historical chart
+    # Historical prices
     st.subheader("📉 Historical Prices")
     st.line_chart(data.set_index("Date")["Close"])
 
@@ -86,7 +67,7 @@ if st.button("Predict"):
     future_y = trend(future_x)
 
     future_dates = pd.date_range(
-        start=data["Date"].iloc[-1] + pd.Timedelta(days=1),
+        start=data["Date"].iloc[-1] + timedelta(days=1),
         periods=30
     )
 
@@ -95,20 +76,14 @@ if st.button("Predict"):
         index=future_dates
     )
 
-    # Forecast results
+    # Forecast
     st.subheader("📊 30-Day Price Forecast")
     st.line_chart(forecast)
     st.dataframe(forecast.style.format("{:.2f}"))
 
     # Metrics
     st.subheader("📌 Summary")
-    st.metric(
-        label="Last Known Price",
-        value=f"${data['Close'].iloc[-1]:.2f}"
-    )
-    st.metric(
-        label="Predicted Price (Day 30)",
-        value=f"${forecast.iloc[-1, 0]:.2f}"
-    )
+    st.metric("Last Known Price", f"${data['Close'].iloc[-1]:.2f}")
+    st.metric("Predicted Price (Day 30)", f"${forecast.iloc[-1,0]:.2f}")
 
 st.caption("⚠️ Educational purpose only. Not financial advice.")

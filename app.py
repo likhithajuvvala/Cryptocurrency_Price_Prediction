@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from datetime import date, timedelta
+from datetime import date
 
 # ---------------- Page Config ----------------
 st.set_page_config(
@@ -23,22 +23,7 @@ crypto_map = {
 
 choice = st.selectbox("Select Cryptocurrency", crypto_map.keys())
 
-# ---------------- Load Data ----------------
-def load_data(symbol):
-    try:
-        data = yf.download(
-            symbol,
-            start=date.today() - timedelta(days=730),
-            end=date.today(),
-            progress=False
-        )
-        if data.empty:
-            raise ValueError("Empty data")
-        return data.reset_index(), False
-    except:
-        return load_demo_data(symbol.split("-")[0]), True
-
-
+# ---------------- Demo Data ----------------
 def load_demo_data(symbol):
     dates = pd.date_range(end=date.today(), periods=730)
     np.random.seed(42)
@@ -52,6 +37,28 @@ def load_demo_data(symbol):
 
     return pd.DataFrame({"Date": dates, "Close": prices})
 
+# ---------------- Yahoo Finance Data ----------------
+def load_data(symbol):
+    try:
+        data = yf.download(
+            tickers=symbol,
+            period="2y",
+            interval="1d",
+            auto_adjust=True,
+            progress=False,
+            threads=False
+        )
+
+        if data is None or data.empty:
+            raise ValueError("Empty data")
+
+        data = data.reset_index()
+        data = data[["Date", "Close"]]
+        return data, False
+
+    except:
+        fallback_symbol = symbol.split("-")[0]
+        return load_demo_data(fallback_symbol), True
 
 # ---------------- Prediction ----------------
 if st.button("Predict"):
@@ -64,10 +71,11 @@ if st.button("Predict"):
     else:
         st.success("Live Yahoo Finance data loaded successfully.")
 
-    st.subheader("Historical Price Data")
+    # Historical chart
+    st.subheader("📉 Historical Prices")
     st.line_chart(data.set_index("Date")["Close"])
 
-    # Trend-based Linear Regression
+    # -------- Linear Regression Trend --------
     y = data["Close"].values
     x = np.arange(len(y))
 
@@ -87,6 +95,20 @@ if st.button("Predict"):
         index=future_dates
     )
 
+    # Forecast results
     st.subheader("📊 30-Day Price Forecast")
     st.line_chart(forecast)
     st.dataframe(forecast.style.format("{:.2f}"))
+
+    # Metrics
+    st.subheader("📌 Summary")
+    st.metric(
+        label="Last Known Price",
+        value=f"${data['Close'].iloc[-1]:.2f}"
+    )
+    st.metric(
+        label="Predicted Price (Day 30)",
+        value=f"${forecast.iloc[-1, 0]:.2f}"
+    )
+
+st.caption("⚠️ Educational purpose only. Not financial advice.")

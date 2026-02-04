@@ -1,22 +1,44 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import yfinance as yf
 from datetime import date, timedelta
 
-st.set_page_config(page_title="Crypto Price Prediction")
+# ---------------- Page Config ----------------
+st.set_page_config(
+    page_title="Crypto Price Prediction",
+    page_icon="📈",
+    layout="centered"
+)
 
 st.title("📈 Cryptocurrency Price Prediction")
-st.write("Predict next 30 days using historical trends")
+st.write("Predict cryptocurrency prices for the next 30 days using historical trends")
 
+# ---------------- Crypto Options ----------------
 crypto_map = {
-    "Bitcoin (BTC)": "BTC",
-    "Ethereum (ETH)": "ETH",
-    "Binance Coin (BNB)": "BNB"
+    "Bitcoin (BTC)": "BTC-USD",
+    "Ethereum (ETH)": "ETH-USD",
+    "Binance Coin (BNB)": "BNB-USD"
 }
 
 choice = st.selectbox("Select Cryptocurrency", crypto_map.keys())
 
-# --- fallback demo data ---
+# ---------------- Load Data ----------------
+def load_data(symbol):
+    try:
+        data = yf.download(
+            symbol,
+            start=date.today() - timedelta(days=730),
+            end=date.today(),
+            progress=False
+        )
+        if data.empty:
+            raise ValueError("Empty data")
+        return data.reset_index(), False
+    except:
+        return load_demo_data(symbol.split("-")[0]), True
+
+
 def load_demo_data(symbol):
     dates = pd.date_range(end=date.today(), periods=730)
     np.random.seed(42)
@@ -31,14 +53,21 @@ def load_demo_data(symbol):
     return pd.DataFrame({"Date": dates, "Close": prices})
 
 
+# ---------------- Prediction ----------------
 if st.button("Predict"):
     symbol = crypto_map[choice]
 
-    st.info("Live market data unavailable on corporate networks. Using historical demo data.")
+    data, fallback_used = load_data(symbol)
 
-    data = load_demo_data(symbol)
+    if fallback_used:
+        st.warning("Live Yahoo Finance data unavailable. Using demo historical data.")
+    else:
+        st.success("Live Yahoo Finance data loaded successfully.")
 
-    # Trend model (stable everywhere)
+    st.subheader("Historical Price Data")
+    st.line_chart(data.set_index("Date")["Close"])
+
+    # Trend-based Linear Regression
     y = data["Close"].values
     x = np.arange(len(y))
 
@@ -58,6 +87,6 @@ if st.button("Predict"):
         index=future_dates
     )
 
-    st.success("Prediction Complete")
+    st.subheader("📊 30-Day Price Forecast")
     st.line_chart(forecast)
-    st.dataframe(forecast)
+    st.dataframe(forecast.style.format("{:.2f}"))
